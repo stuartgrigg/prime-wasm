@@ -1,0 +1,103 @@
+<!doctype html>
+<!--
+Copyright 2018 The Go Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+-->
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title>Go wasm</title>
+</head>
+
+<body>
+	<script src="wasm_exec.js"></script>
+	<script>
+    var output = '';
+    var start;
+		if (!WebAssembly.instantiateStreaming) { // polyfill
+			WebAssembly.instantiateStreaming = async (resp, importObject) => {
+				const source = await (await resp).arrayBuffer();
+				return await WebAssembly.instantiate(source, importObject);
+			};
+		}
+
+		const go = new Go();
+		let mod, inst;
+		WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((result) => {
+			mod = result.module;
+      inst = result.instance;
+      run()
+			document.getElementById("runGoButton").disabled = false;
+		});
+
+		async function run() {
+			console.clear();
+			await go.run(inst);
+			inst = await WebAssembly.instantiate(mod, go.importObject); // reset instance
+    }
+
+    function handleClick(doGo) {
+      const prime = 28722900390631
+      start = Date.now()
+      if (doGo) {
+        goPrime(prime);
+      } else {
+        jsPrime(prime)
+      }
+    };
+
+    function jsPrime(n) {
+      output = isPrime(n)
+      done()
+    }
+
+    /*
+    function is_prime(n)
+        if n ≤ 1
+            return false
+        else if n ≤ 3
+            return true
+        else if n mod 2 = 0 or n mod 3 = 0
+            return false
+        let i ← 5
+        while i * i ≤ n
+            if n mod i = 0 or n mod (i + 2) = 0
+                return false
+            i ← i + 6
+        return true
+    */
+
+    function isPrime(n) {
+      if (n <= 1) {
+        return false
+      } else if (n <= 3) {
+        return true
+      } else if ((n % 2 == 0) || (n % 3 == 0)) {
+        return false
+      }
+      let i = 5
+      while (i*i <= n) {
+        if (n % i == 0 || (n % (i+2) == 0)) {
+           return false
+        }
+        i = i + 6
+      }
+      return true
+    }
+
+    function done() {
+      document.getElementById('myText').textContent = output;
+      let delta = Date.now() - start;
+      document.getElementById('timeText').textContent = '' + delta+ 'ms';
+    }
+	</script>
+
+  <button onClick="handleClick(false)" id="runJSButton">Run JS</button>
+  <button onClick="handleClick(true)" id="runGoButton" disabled>Run Go</button>
+  <span id="timeText"></span>
+  <span id="myText"></span>
+</body>
+
+</html>
